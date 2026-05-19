@@ -46,11 +46,11 @@ SOURCE_REPO=https://github.com/facebook/zstd.git
 SOURCE_REF=dev
 BUILD_SYSTEM=make
 INSTALL_PREFIX=/usr
-CONFIGURE_ARGS=
-BUILD_ARGS=
-INSTALL_ARGS=PREFIX=/usr
-PACKAGE_DIRS=bin lib include share
-APK_BUILD_DEPS=bash build-base git tar file ca-certificates
+CONFIGURE_ARGS=''
+BUILD_ARGS=''
+INSTALL_ARGS='PREFIX=/usr'
+PACKAGE_DIRS='bin lib include share'
+APK_BUILD_DEPS='bash build-base git tar file ca-certificates'
 ```
 
 ### 字段说明
@@ -112,7 +112,7 @@ APK_BUILD_DEPS=bash build-base git tar file ca-certificates
 
 - Build system: `meson`
 - 默认 ref: `master`
-- 配置参数：`-Dexamples=false -Dtests=false`
+- 配置参数：`'-Dexamples=false -Dtests=false'`
 - 支持自动跟踪上游 tag 并发布 Release
 - 自动附带多架构构建产物和 `.sha256` 校验文件
 
