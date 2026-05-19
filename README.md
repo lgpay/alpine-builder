@@ -10,6 +10,7 @@
 - 手动指定源码 ref（tag / branch / commit）
 - 在 Alpine 容器里构建，确保产物是 musl 环境
 - 输出 tar.gz artifact
+- `libfuse` 自动跟踪上游 tag，并自动发布到 GitHub Release
 - 支持多种常见构建系统：
   - meson
   - cmake
@@ -21,6 +22,7 @@
 ```text
 .
 ├── .github/workflows/build.yml
+├── .github/workflows/libfuse-release.yml
 ├── projects/
 │   └── libfuse/
 │       └── project.env
@@ -64,6 +66,8 @@ APK_BUILD_DEPS=bash build-base git tar file ca-certificates
 
 ## 使用方式
 
+### 通用手动构建
+
 1. 推送到 GitHub 仓库
 2. 打开 `Actions`
 3. 运行 `Build Alpine package`
@@ -76,6 +80,23 @@ APK_BUILD_DEPS=bash build-base git tar file ca-certificates
 
 - `<project>-alpine-<git-sha>-apk<alpine-version>`
 
+### libfuse 自动发布 Release
+
+仓库内额外提供了一个 workflow：`Auto release libfuse for Alpine`
+
+它会：
+
+1. 每天定时检查 `libfuse` 上游最新 tag
+2. 如果当前仓库还没有对应 release
+3. 自动构建 Alpine 版本二进制包
+4. 自动发布到当前仓库的 GitHub Releases
+
+也可以手动触发，并支持：
+
+- `ref`: 手动指定 libfuse tag / branch / commit
+- `alpine_version`: 指定 Alpine 版本
+- `force=true`: 即使 release 已存在也强制重新构建
+
 ## 当前内置项目
 
 ### libfuse
@@ -87,6 +108,7 @@ APK_BUILD_DEPS=bash build-base git tar file ca-certificates
 - Build system: `meson`
 - 默认 ref: `master`
 - 配置参数：`-Dexamples=false -Dtests=false`
+- 支持自动跟踪上游 tag 并发布 Release
 
 ## 注意
 
