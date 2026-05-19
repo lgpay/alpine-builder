@@ -1,0 +1,66 @@
+name: Build Alpine package
+
+on:
+  workflow_dispatch:
+    inputs:
+      project:
+        description: 'Project preset name under projects/<name>'
+        required: true
+        default: 'libfuse'
+      ref:
+        description: 'Optional override git ref (tag / branch / commit)'
+        required: false
+        default: ''
+      alpine_version:
+        description: 'Alpine version'
+        required: false
+        default: '3.20'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64]
+    container:
+      image: alpine:${{ inputs.alpine_version || '3.20' }}
+
+    steps:
+      - name: Checkout current repository
+        uses: actions/checkout@v4
+
+      - name: Load project preset
+        run: |
+          test -f "$GITHUB_WORKSPACE/projects/${{ inputs.project }}/project.env"
+          cat "$GITHUB_WORKSPACE/projects/${{ inputs.project }}/project.env" >> "$GITHUB_ENV"
+          echo "ALPINE_VERSION=${{ inputs.alpine_version || '3.20' }}" >> "$GITHUB_ENV"
+          echo "TARGET_ARCH=${{ matrix.arch }}" >> "$GITHUB_ENV"
+          if [ -n "${{ inputs.ref }}" ]; then
+            echo "SOURCE_REF=${{ inputs.ref }}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Install build dependencies
+        run: |
+          apk add --no-cache ${APK_BUILD_DEPS}
+
+      - name: Build project
+        run: |
+          chmod +x "$GITHUB_WORKSPACE/scripts/package.sh"
+          chmod +x "$GITHUB_WORKSPACE/scripts/build-project.sh"
+          "$GITHUB_WORKSPACE/scripts/build-project.sh"
+
+      - name: Inspect output
+        run: |
+          find /tmp/pkgroot -maxdepth 6 -type f | sort || true
+          find /tmp/out -maxdepth 2 -type f | sort || true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.project }}-alpine-${{ env.GIT_SHA || 'unknown' }}-apk${{ inputs.alpine_version || '3.20' }}
+          path: /tmp/out/*.tar.gz
+          if-no-files-found: error
