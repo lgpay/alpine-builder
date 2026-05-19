@@ -36,4 +36,11 @@ EOF
 TAR_PATH="$OUT_DIR/$(basename "$PKG_ROOT").tar.gz"
 tar -C "$OUT_DIR" -czf "$TAR_PATH" "$(basename "$PKG_ROOT")"
 
+SHA_PATH="$TAR_PATH.sha256"
+(
+  cd "$OUT_DIR"
+  sha256sum "$(basename "$TAR_PATH")"
+) > "$SHA_PATH"
+
 echo "Created package: $TAR_PATH"
+echo "Created checksum: $SHA_PATH"

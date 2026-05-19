@@ -8,8 +8,10 @@
 
 - 手动选择要编译的项目预设
 - 手动指定源码 ref（tag / branch / commit）
+- 支持 `x86_64`、`aarch64` 或双架构构建
 - 在 Alpine 容器里构建，确保产物是 musl 环境
 - 输出 tar.gz artifact
+- 自动生成 `.sha256` 校验文件
 - `libfuse` 自动跟踪上游 tag，并自动发布到 GitHub Release
 - 支持多种常见构建系统：
   - meson
@@ -75,10 +77,12 @@ APK_BUILD_DEPS=bash build-base git tar file ca-certificates
    - `project`: 例如 `libfuse`
    - `ref`: 可选，覆盖默认 ref
    - `alpine_version`: 例如 `3.20`
+   - `arch`: `x86_64` / `aarch64` / `all`
 
 完成后会在 Artifacts 中得到：
 
-- `<project>-alpine-<git-sha>-apk<alpine-version>`
+- `<project>-alpine-<git-sha>-apk<alpine-version>-<arch>.tar.gz`
+- 对应的 `.sha256` 校验文件
 
 ### libfuse 自动发布 Release
 
@@ -95,6 +99,7 @@ APK_BUILD_DEPS=bash build-base git tar file ca-certificates
 
 - `ref`: 手动指定 libfuse tag / branch / commit
 - `alpine_version`: 指定 Alpine 版本
+- `arch`: `x86_64` / `aarch64` / `all`
 - `force=true`: 即使 release 已存在也强制重新构建
 
 ## 当前内置项目
@@ -109,6 +114,7 @@ APK_BUILD_DEPS=bash build-base git tar file ca-certificates
 - 默认 ref: `master`
 - 配置参数：`-Dexamples=false -Dtests=false`
 - 支持自动跟踪上游 tag 并发布 Release
+- 自动附带多架构构建产物和 `.sha256` 校验文件
 
 ## 注意
 

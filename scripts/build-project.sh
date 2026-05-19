@@ -22,8 +22,15 @@ git clone "$SOURCE_REPO" "$SRC_DIR"
 cd "$SRC_DIR"
 git checkout "$SOURCE_REF"
 
-echo "GIT_DESCRIBE=$(git describe --tags --always --dirty 2>/dev/null || git rev-parse --short HEAD)" >> "$GITHUB_ENV"
-echo "GIT_SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+GIT_DESCRIBE_VALUE="$(git describe --tags --always --dirty 2>/dev/null || git rev-parse --short HEAD)"
+GIT_SHA_VALUE="$(git rev-parse --short HEAD)"
+export GIT_DESCRIBE="$GIT_DESCRIBE_VALUE"
+export GIT_SHA="$GIT_SHA_VALUE"
+
+if [ -n "${GITHUB_ENV:-}" ]; then
+  echo "GIT_DESCRIBE=$GIT_DESCRIBE_VALUE" >> "$GITHUB_ENV"
+  echo "GIT_SHA=$GIT_SHA_VALUE" >> "$GITHUB_ENV"
+fi
 
 echo "Building $PROJECT_NAME from $SOURCE_REPO @ $SOURCE_REF using $BUILD_SYSTEM"
 

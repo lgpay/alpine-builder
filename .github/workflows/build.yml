@@ -15,52 +15,123 @@ on:
         description: 'Alpine version'
         required: false
         default: '3.20'
+      arch:
+        description: 'Target architecture: x86_64, aarch64, or all'
+        required: false
+        default: 'all'
 
 permissions:
   contents: read
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Resolve build matrix
+        id: set-matrix
+        env:
+          INPUT_ARCH: ${{ inputs.arch || 'all' }}
+        run: |
+          set -eu
+          case "$INPUT_ARCH" in
+            x86_64)
+              MATRIX='["x86_64"]'
+              ;;
+            aarch64)
+              MATRIX='["aarch64"]'
+              ;;
+            all)
+              MATRIX='["x86_64","aarch64"]'
+              ;;
+            *)
+              echo "Unsupported arch: $INPUT_ARCH" >&2
+              exit 1
+              ;;
+          esac
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: prepare
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        arch: [x86_64]
-    container:
-      image: alpine:${{ inputs.alpine_version || '3.20' }}
-
+        arch: ${{ fromJson(needs.prepare.outputs.matrix) }}
     steps:
       - name: Checkout current repository
         uses: actions/checkout@v4
 
-      - name: Load project preset
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build project in Alpine container
+        env:
+          PROJECT_INPUT: ${{ inputs.project }}
+          REF_INPUT: ${{ inputs.ref }}
+          ALPINE_VERSION_INPUT: ${{ inputs.alpine_version || '3.20' }}
+          TARGET_ARCH_INPUT: ${{ matrix.arch }}
+          HOST_OUT_DIR: ${{ runner.temp }}/alpine-out-${{ matrix.arch }}
         run: |
-          test -f "$GITHUB_WORKSPACE/projects/${{ inputs.project }}/project.env"
-          cat "$GITHUB_WORKSPACE/projects/${{ inputs.project }}/project.env" >> "$GITHUB_ENV"
-          echo "ALPINE_VERSION=${{ inputs.alpine_version || '3.20' }}" >> "$GITHUB_ENV"
-          echo "TARGET_ARCH=${{ matrix.arch }}" >> "$GITHUB_ENV"
-          if [ -n "${{ inputs.ref }}" ]; then
-            echo "SOURCE_REF=${{ inputs.ref }}" >> "$GITHUB_ENV"
+          set -eu
+          test -f "$GITHUB_WORKSPACE/projects/$PROJECT_INPUT/project.env"
+          rm -rf "$HOST_OUT_DIR"
+          mkdir -p "$HOST_OUT_DIR"
+          PLATFORM="linux/amd64"
+          if [ "$TARGET_ARCH_INPUT" = "aarch64" ]; then
+            PLATFORM="linux/arm64"
           fi
 
-      - name: Install build dependencies
-        run: |
-          apk add --no-cache ${APK_BUILD_DEPS}
+          docker run --rm \
+            --platform "$PLATFORM" \
+            -e PROJECT_INPUT \
+            -e REF_INPUT \
+            -e ALPINE_VERSION_INPUT \
+            -e TARGET_ARCH_INPUT \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -v "$HOST_OUT_DIR:/tmp/out" \
+            -w /workspace \
+            "alpine:$ALPINE_VERSION_INPUT" \
+            sh -lc '
+              set -eu
+              cat "/workspace/projects/$PROJECT_INPUT/project.env" > /tmp/project.env
+              . /tmp/project.env
+              apk add --no-cache $APK_BUILD_DEPS cmake autoconf automake libtool make
+              export PROJECT_NAME SOURCE_REPO SOURCE_REF BUILD_SYSTEM INSTALL_PREFIX CONFIGURE_ARGS BUILD_ARGS INSTALL_ARGS PACKAGE_DIRS APK_BUILD_DEPS
+              export ALPINE_VERSION="$ALPINE_VERSION_INPUT"
+              export TARGET_ARCH="$TARGET_ARCH_INPUT"
+              if [ -n "$REF_INPUT" ]; then
+                export SOURCE_REF="$REF_INPUT"
+              fi
+              chmod +x /workspace/scripts/package.sh /workspace/scripts/build-project.sh
+              /workspace/scripts/build-project.sh
+            '
 
-      - name: Build project
+      - name: Read build metadata
+        id: meta
+        env:
+          HOST_OUT_DIR: ${{ runner.temp }}/alpine-out-${{ matrix.arch }}
         run: |
-          chmod +x "$GITHUB_WORKSPACE/scripts/package.sh"
-          chmod +x "$GITHUB_WORKSPACE/scripts/build-project.sh"
-          "$GITHUB_WORKSPACE/scripts/build-project.sh"
+          set -eu
+          ARTIFACT_BASE="$(basename "$HOST_OUT_DIR"/*.tar.gz .tar.gz)"
+          echo "artifact_base=$ARTIFACT_BASE" >> "$GITHUB_OUTPUT"
 
       - name: Inspect output
+        env:
+          HOST_OUT_DIR: ${{ runner.temp }}/alpine-out-${{ matrix.arch }}
         run: |
-          find /tmp/pkgroot -maxdepth 6 -type f | sort || true
-          find /tmp/out -maxdepth 2 -type f | sort || true
+          find "$HOST_OUT_DIR" -maxdepth 2 -type f | sort || true
+          ls -lah "$HOST_OUT_DIR" || true
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.project }}-alpine-${{ env.GIT_SHA || 'unknown' }}-apk${{ inputs.alpine_version || '3.20' }}
-          path: /tmp/out/*.tar.gz
+          name: ${{ steps.meta.outputs.artifact_base }}
+          path: |
+            ${{ runner.temp }}/alpine-out-${{ matrix.arch }}/*.tar.gz
+            ${{ runner.temp }}/alpine-out-${{ matrix.arch }}/*.sha256
           if-no-files-found: error
