@@ -88,6 +88,7 @@ jobs:
 
           docker run --rm \
             --platform "$PLATFORM" \
+            -e GITHUB_WORKSPACE=/workspace \
             -e PROJECT_INPUT \
             -e REF_INPUT \
             -e ALPINE_VERSION_INPUT \
