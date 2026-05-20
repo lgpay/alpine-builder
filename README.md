@@ -2,7 +2,7 @@
 
 通用的 GitHub Actions Alpine 编译项目。
 
-目标：在 `alpine` 容器里编译各种开源项目，输出适用于 Alpine Linux / musl 的二进制制品。当前内置了 `libfuse` 示例，后续可以继续往 `projects/` 下加更多项目预设。
+目标：在 `alpine` 容器里编译各种开源项目，输出适用于 Alpine Linux / musl 的二进制制品。当前内置了 `libfuse` 和 `ossfs` 两个示例，后续可以继续往 `projects/` 下加更多项目预设。
 
 ## 现在支持
 
@@ -13,6 +13,7 @@
 - 输出 tar.gz artifact
 - 自动生成 `.sha256` 校验文件
 - `libfuse` 自动跟踪上游 tag，并自动发布到 GitHub Release
+- `ossfs` 自动跟踪上游 tag，并自动发布到 GitHub Release
 - 支持多种常见构建系统：
   - meson
   - cmake
@@ -25,8 +26,11 @@
 .
 ├── .github/workflows/build.yml
 ├── .github/workflows/libfuse-release.yml
+├── .github/workflows/ossfs-release.yml
 ├── projects/
-│   └── libfuse/
+│   ├── libfuse/
+│   │   └── project.env
+│   └── ossfs/
 │       └── project.env
 ├── scripts/
 │   ├── build-project.sh
@@ -102,6 +106,24 @@ APK_BUILD_DEPS='bash build-base git tar file ca-certificates'
 - `arch`: `x86_64` / `aarch64` / `all`
 - `force=true`: 即使 release 已存在也强制重新构建
 
+### ossfs 自动发布 Release
+
+仓库内额外提供了一个 workflow：`Auto release ossfs for Alpine`
+
+它会：
+
+1. 每天定时检查 `ossfs` 上游最新 tag
+2. 如果当前仓库还没有对应 release
+3. 自动构建 Alpine 版本二进制包
+4. 自动发布到当前仓库的 GitHub Releases
+
+也可以手动触发，并支持：
+
+- `ref`: 手动指定 ossfs tag / branch / commit
+- `alpine_version`: 指定 Alpine 版本
+- `arch`: `x86_64` / `aarch64` / `all`
+- `force=true`: 即使 release 已存在也强制重新构建
+
 ## 当前内置项目
 
 ### libfuse
@@ -115,6 +137,21 @@ APK_BUILD_DEPS='bash build-base git tar file ca-certificates'
 - 配置参数：`'-Dexamples=false -Dtests=false'`
 - 支持自动跟踪上游 tag 并发布 Release
 - 自动附带多架构构建产物和 `.sha256` 校验文件
+
+### ossfs
+
+源码：<https://github.com/aliyun/ossfs>
+
+默认设置：
+
+- Build system: `cmake`
+- 默认 ref: `main`
+- 产物会包含：
+  - `/usr/local/bin/ossfs2`
+  - `/usr/sbin/mount.ossfs2`
+  - `/usr/local/lib64/ossfs2/libfuse3.so.3`
+- 针对项目自带的预置依赖 tarball 直接在 Alpine 容器内编译
+- 说明：上游 README 明确写了 aarch64 目前仅官方支持 Alibaba Cloud Linux 3；这里仍然保留通用构建能力，但 ARM 产物建议自行验证运行兼容性
 
 ## 注意
 

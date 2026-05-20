@@ -1,0 +1,229 @@
+name: Auto release ossfs for Alpine
+
+on:
+  schedule:
+    - cron: '41 3 * * *'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Optional ossfs ref override (tag / branch / commit). Empty means latest upstream tag.'
+        required: false
+        default: ''
+      alpine_version:
+        description: 'Alpine version'
+        required: false
+        default: '3.20'
+      arch:
+        description: 'Target architecture: x86_64, aarch64, or all'
+        required: false
+        default: 'all'
+      force:
+        description: 'Force rebuild and release even if release tag already exists'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: write
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      source_ref: ${{ steps.pick.outputs.source_ref }}
+      release_tag: ${{ steps.pick.outputs.release_tag }}
+      release_name: ${{ steps.pick.outputs.release_name }}
+      artifact_prefix: ${{ steps.pick.outputs.artifact_prefix }}
+      should_build: ${{ steps.check.outputs.should_build }}
+      alpine_version: ${{ steps.pick.outputs.alpine_version }}
+      matrix: ${{ steps.arch.outputs.matrix }}
+    steps:
+      - name: Resolve target tag
+        id: pick
+        env:
+          INPUT_REF: ${{ inputs.ref }}
+          INPUT_ALPINE: ${{ inputs.alpine_version || '3.20' }}
+        run: |
+          set -eu
+          if [ -n "$INPUT_REF" ]; then
+            SOURCE_REF="$INPUT_REF"
+          else
+            SOURCE_REF="$(git ls-remote --tags --refs https://github.com/aliyun/ossfs.git \
+              | awk '{print $2}' \
+              | sed 's#refs/tags/##' \
+              | sort -V \
+              | tail -n 1)"
+          fi
+
+          if [ -z "$SOURCE_REF" ]; then
+            echo 'Failed to resolve ossfs tag' >&2
+            exit 1
+          fi
+
+          SAFE_REF="$(printf '%s' "$SOURCE_REF" | tr '/:@ ' '----')"
+          RELEASE_TAG="ossfs-${SAFE_REF}-apk${INPUT_ALPINE}"
+          RELEASE_NAME="ossfs ${SOURCE_REF} for Alpine ${INPUT_ALPINE}"
+          ARTIFACT_PREFIX="ossfs-alpine-${SAFE_REF}-apk${INPUT_ALPINE}"
+
+          echo "source_ref=$SOURCE_REF" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "release_name=$RELEASE_NAME" >> "$GITHUB_OUTPUT"
+          echo "artifact_prefix=$ARTIFACT_PREFIX" >> "$GITHUB_OUTPUT"
+          echo "alpine_version=$INPUT_ALPINE" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve architecture matrix
+        id: arch
+        env:
+          INPUT_ARCH: ${{ inputs.arch || 'all' }}
+        run: |
+          set -eu
+          case "$INPUT_ARCH" in
+            x86_64)
+              MATRIX='["x86_64"]'
+              ;;
+            aarch64)
+              MATRIX='["aarch64"]'
+              ;;
+            all)
+              MATRIX='["x86_64","aarch64"]'
+              ;;
+            *)
+              echo "Unsupported arch: $INPUT_ARCH" >&2
+              exit 1
+              ;;
+          esac
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+
+      - name: Check existing release
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FORCE: ${{ inputs.force || 'false' }}
+          RELEASE_TAG: ${{ steps.pick.outputs.release_tag }}
+        run: |
+          set -eu
+          if [ "$FORCE" = "true" ]; then
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists, skipping"
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: discover
+    if: needs.discover.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: ${{ fromJson(needs.discover.outputs.matrix) }}
+    steps:
+      - name: Checkout current repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build ossfs in Alpine container
+        env:
+          SOURCE_REF_INPUT: ${{ needs.discover.outputs.source_ref }}
+          ALPINE_VERSION_INPUT: ${{ needs.discover.outputs.alpine_version }}
+          TARGET_ARCH_INPUT: ${{ matrix.arch }}
+          HOST_OUT_DIR: ${{ runner.temp }}/alpine-out-${{ matrix.arch }}
+        run: |
+          set -eu
+          rm -rf "$HOST_OUT_DIR"
+          mkdir -p "$HOST_OUT_DIR"
+          PLATFORM="linux/amd64"
+          if [ "$TARGET_ARCH_INPUT" = "aarch64" ]; then
+            PLATFORM="linux/arm64"
+          fi
+
+          docker run --rm \
+            --platform "$PLATFORM" \
+            -e GITHUB_WORKSPACE=/workspace \
+            -e SOURCE_REF_INPUT \
+            -e ALPINE_VERSION_INPUT \
+            -e TARGET_ARCH_INPUT \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -v "$HOST_OUT_DIR:/tmp/out" \
+            -w /workspace \
+            "alpine:$ALPINE_VERSION_INPUT" \
+            sh -lc '
+              set -eu
+              cat /workspace/projects/ossfs/project.env > /tmp/project.env
+              . /tmp/project.env
+              apk add --no-cache $APK_BUILD_DEPS cmake autoconf automake libtool make
+              export PROJECT_NAME SOURCE_REPO BUILD_SYSTEM INSTALL_PREFIX CONFIGURE_ARGS BUILD_ARGS INSTALL_ARGS PACKAGE_DIRS APK_BUILD_DEPS
+              export SOURCE_REF="$SOURCE_REF_INPUT"
+              export ALPINE_VERSION="$ALPINE_VERSION_INPUT"
+              export TARGET_ARCH="$TARGET_ARCH_INPUT"
+              chmod +x /workspace/scripts/package.sh /workspace/scripts/build-project.sh
+              /workspace/scripts/build-project.sh
+            '
+
+      - name: Read build metadata
+        id: meta
+        env:
+          HOST_OUT_DIR: ${{ runner.temp }}/alpine-out-${{ matrix.arch }}
+        run: |
+          set -eu
+          ARTIFACT_BASE="$(basename "$HOST_OUT_DIR"/*.tar.gz .tar.gz)"
+          echo "artifact_base=$ARTIFACT_BASE" >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.meta.outputs.artifact_base }}
+          path: |
+            ${{ runner.temp }}/alpine-out-${{ matrix.arch }}/*.tar.gz
+            ${{ runner.temp }}/alpine-out-${{ matrix.arch }}/*.sha256
+          if-no-files-found: error
+
+  release:
+    needs: [discover, build]
+    if: needs.discover.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all built artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ${{ needs.discover.outputs.artifact_prefix }}-*
+          path: dist
+          merge-multiple: true
+
+      - name: Generate release notes
+        run: |
+          set -eu
+          {
+            printf 'Automated build for ossfs ref `%s` on Alpine `%s`.\n\n' \
+              '${{ needs.discover.outputs.source_ref }}' \
+              '${{ needs.discover.outputs.alpine_version }}'
+            echo 'Included files:'
+            find dist -maxdepth 1 -type f | sed 's#^#- #'
+            echo
+            echo 'Note: upstream documents aarch64 support primarily for Alibaba Cloud Linux 3; Alpine ARM artifacts should be validated before production use.'
+          } > RELEASE_NOTES.md
+          cat RELEASE_NOTES.md
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.discover.outputs.release_tag }}
+          RELEASE_NAME: ${{ needs.discover.outputs.release_name }}
+        run: |
+          set -eu
+          ls -lah dist
+          gh release create "$RELEASE_TAG" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$RELEASE_NAME" \
+            --notes-file RELEASE_NOTES.md

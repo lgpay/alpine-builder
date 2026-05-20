@@ -19,7 +19,8 @@ mkdir -p "$PKG_ROOT"
 
 for dir in $PACKAGE_DIRS_RAW; do
   if [ -d "$PREFIX_DIR/$dir" ]; then
-    cp -a "$PREFIX_DIR/$dir" "$PKG_ROOT/"
+    mkdir -p "$PKG_ROOT/$(dirname "$dir")"
+    cp -a "$PREFIX_DIR/$dir" "$PKG_ROOT/$dir"
   fi
 done
 
