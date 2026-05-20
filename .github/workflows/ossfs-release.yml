@@ -47,9 +47,8 @@ jobs:
           if [ -n "$INPUT_REF" ]; then
             SOURCE_REF="$INPUT_REF"
           else
-            SOURCE_REF="$(git ls-remote --tags --refs https://github.com/aliyun/ossfs.git \
-              | awk '{print $2}' \
-              | sed 's#refs/tags/##' \
+            SOURCE_REF="$(gh release list --repo aliyun/ossfs --limit 100 \
+              | awk 'BEGIN{best=""} $3 ~ /^v1\./ {print $3}' \
               | sort -V \
               | tail -n 1)"
           fi
@@ -211,7 +210,7 @@ jobs:
             echo 'Included files:'
             find dist -maxdepth 1 -type f | sed 's#^#- #'
             echo
-            echo 'Note: upstream documents aarch64 support primarily for Alibaba Cloud Linux 3; Alpine ARM artifacts should be validated before production use.'
+            echo 'This workflow tracks upstream ossfs GitHub releases on the v1.xx line by default and applies a minimal Alpine compatibility patch during build.'
           } > RELEASE_NOTES.md
           cat RELEASE_NOTES.md
 
