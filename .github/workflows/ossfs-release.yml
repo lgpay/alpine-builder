@@ -160,7 +160,7 @@ jobs:
               cat /workspace/projects/ossfs/project.env > /tmp/project.env
               . /tmp/project.env
               apk add --no-cache $APK_BUILD_DEPS cmake autoconf automake libtool make
-              export PROJECT_NAME SOURCE_REPO BUILD_SYSTEM INSTALL_PREFIX CONFIGURE_ARGS BUILD_ARGS INSTALL_ARGS PACKAGE_DIRS APK_BUILD_DEPS
+              export PROJECT_NAME SOURCE_REPO BUILD_SYSTEM INSTALL_PREFIX CONFIGURE_ARGS BUILD_ARGS INSTALL_ARGS PACKAGE_DIRS APK_BUILD_DEPS SOURCE_SUBDIR PRE_BUILD_HOOK POST_CLONE_HOOK
               export SOURCE_REF="$SOURCE_REF_INPUT"
               export ALPINE_VERSION="$ALPINE_VERSION_INPUT"
               export TARGET_ARCH="$TARGET_ARCH_INPUT"
