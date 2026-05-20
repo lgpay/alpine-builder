@@ -10,6 +10,9 @@ CONFIGURE_ARGS="${CONFIGURE_ARGS:-}"
 BUILD_ARGS="${BUILD_ARGS:-}"
 INSTALL_ARGS="${INSTALL_ARGS:-}"
 PACKAGE_DIRS="${PACKAGE_DIRS:-bin sbin lib lib64 include share}"
+SOURCE_SUBDIR="${SOURCE_SUBDIR:-.}"
+PRE_BUILD_HOOK="${PRE_BUILD_HOOK:-}"
+POST_CLONE_HOOK="${POST_CLONE_HOOK:-}"
 
 SRC_DIR=/tmp/src
 PKGROOT=/tmp/pkgroot
@@ -22,6 +25,12 @@ git clone "$SOURCE_REPO" "$SRC_DIR"
 cd "$SRC_DIR"
 git checkout "$SOURCE_REF"
 
+if [ -n "$POST_CLONE_HOOK" ]; then
+  sh -lc "$POST_CLONE_HOOK"
+fi
+
+cd "$SRC_DIR/$SOURCE_SUBDIR"
+
 GIT_DESCRIBE_VALUE="$(git describe --tags --always --dirty 2>/dev/null || git rev-parse --short HEAD)"
 GIT_SHA_VALUE="$(git rev-parse --short HEAD)"
 export GIT_DESCRIBE="$GIT_DESCRIBE_VALUE"
@@ -33,6 +42,10 @@ if [ -n "${GITHUB_ENV:-}" ]; then
 fi
 
 echo "Building $PROJECT_NAME from $SOURCE_REPO @ $SOURCE_REF using $BUILD_SYSTEM"
+
+if [ -n "$PRE_BUILD_HOOK" ]; then
+  sh -lc "$PRE_BUILD_HOOK"
+fi
 
 case "$BUILD_SYSTEM" in
   meson)
