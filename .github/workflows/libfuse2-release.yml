@@ -94,7 +94,7 @@ jobs:
       - name: Check existing release
         id: check
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           FORCE: ${{ inputs.force || 'false' }}
           RELEASE_TAG: ${{ steps.pick.outputs.release_tag }}
         run: |
@@ -215,7 +215,7 @@ jobs:
 
       - name: Publish GitHub Release
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.discover.outputs.release_tag }}
           RELEASE_NAME: ${{ needs.discover.outputs.release_name }}
         run: |
