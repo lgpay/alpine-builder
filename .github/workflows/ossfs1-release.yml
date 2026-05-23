@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: 'Optional ossfs1 ref override (tag / branch / commit). Empty means upstream main-v1 branch.'
+        description: 'Optional ossfs1 ref override (tag / branch / commit). Empty means latest upstream v1.x release.'
         required: false
         default: ''
       alpine_version:
@@ -48,7 +48,7 @@ jobs:
           if [ -n "$INPUT_REF" ]; then
             SOURCE_REF="$INPUT_REF"
           else
-            SOURCE_REF="main-v1"
+            SOURCE_REF="$(gh api repos/aliyun/ossfs/releases --paginate -q '.[].tag_name'               | grep '^v1\.'               | sort -V               | tail -n 1)"
           fi
 
           if [ -z "$SOURCE_REF" ]; then
@@ -163,16 +163,6 @@ jobs:
               cat /workspace/projects/ossfs1/project.env > /tmp/project.env
               . /tmp/project.env
               apk add --no-cache $APK_BUILD_DEPS cmake autoconf automake libtool make
-              FUSE2_URL="https://github.com/lgpay/alpine-builder/releases/download/libfuse2-fuse-2.9.9-alpine${ALPINE_VERSION_INPUT}/libfuse-fuse-2.9.9-alpine${ALPINE_VERSION_INPUT}-${FUSE2_ASSET_ARCH}.tar.gz"
-              mkdir -p /tmp/fuse2
-              curl -L --fail "$FUSE2_URL" -o /tmp/fuse2.tar.gz
-              tar -xzf /tmp/fuse2.tar.gz -C /tmp/fuse2 --strip-components=1
-              cp -a /tmp/fuse2/include/fuse /usr/include/
-              cp -a /tmp/fuse2/include/fuse.h /usr/include/
-              cp -a /tmp/fuse2/include/ulockmgr.h /usr/include/
-              cp -a /tmp/fuse2/lib/* /usr/lib/
-              export PKG_CONFIG_PATH="/usr/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
-              export LD_LIBRARY_PATH="/usr/lib:${LD_LIBRARY_PATH:-}"
               export PROJECT_NAME SOURCE_REPO BUILD_SYSTEM INSTALL_PREFIX CONFIGURE_ARGS BUILD_ARGS INSTALL_ARGS PACKAGE_DIRS APK_BUILD_DEPS SOURCE_SUBDIR PRE_BUILD_HOOK POST_CLONE_HOOK
               export SOURCE_REF="$SOURCE_REF_INPUT"
               export ALPINE_VERSION="$ALPINE_VERSION_INPUT"
@@ -220,7 +210,7 @@ jobs:
             echo 'Included files:'
             find dist -maxdepth 1 -type f | sed 's#^#- #'
             echo
-            echo 'This workflow tracks the upstream ossfs main-v1 maintenance branch by default and applies a minimal Alpine compatibility patch during build.'
+            echo 'This workflow tracks the latest upstream ossfs v1.x release by default and applies a minimal Alpine compatibility patch during build.'
           } > RELEASE_NOTES.md
           cat RELEASE_NOTES.md
 

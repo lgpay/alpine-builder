@@ -12,8 +12,8 @@
   - `libfuse`：跟踪上游最新 libfuse 主线 tag
   - `ossfs`：跟踪上游最新 release
 - **有数字后缀 = 特定兼容线 / 维护线 / 指定变体**
-  - `libfuse2`：fuse2 / `libfuse.so.2` ABI 线
-  - `ossfs1`：`main-v1` 维护线
+  - `libfuse2`：fuse2 线
+  - `ossfs1`：1.x release 线
 
 说明：带数字后缀不一定表示“固定死某一个 tag”，也可以表示一条明确区分出来的兼容线或维护线。关键是它不再表示默认最新版主线。
 
@@ -137,7 +137,7 @@ workflow：`Auto release libfuse2 for Alpine`
 它会：
 
 1. 检查 `libfuse` 上游 `fuse-2.*` tag
-2. 构建 `libfuse.so.2` 兼容的 Alpine 制品
+2. 构建 Alpine 制品
 3. 发布到当前仓库的 GitHub Releases
 
 可手动触发参数：
@@ -170,7 +170,7 @@ workflow：`Auto release ossfs1 for Alpine`
 
 它会：
 
-1. 跟踪 `ossfs` 上游 `main-v1` 维护线
+1. 跟踪 `ossfs` 上游最新 `v1.x` release
 2. 自动构建 Alpine 版本二进制包
 3. 自动发布到当前仓库的 GitHub Releases
 
@@ -202,7 +202,6 @@ workflow：`Auto release ossfs1 for Alpine`
 
 - Build system: `autotools`
 - 默认 ref: `fuse-2.9.9`
-- 目标 ABI：`libfuse.so.2`
 - workflow 名称：`Auto release libfuse2 for Alpine`
 
 ### ossfs
@@ -223,10 +222,10 @@ workflow：`Auto release ossfs1 for Alpine`
 默认设置：
 
 - Build system: `autotools`
-- 默认 ref: `main-v1`
+- 默认 ref: 自动取上游最新 `v1.x` release
 - 构建时会应用最小 Alpine 兼容补丁（通过 `POST_CLONE_HOOK`）
 - workflow 名称：`Auto release ossfs1 for Alpine`
-- 适合维护 `main-v1` 兼容线
+- 适合维护 1.x release 线
 
 ## 注意
 
