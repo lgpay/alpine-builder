@@ -48,8 +48,8 @@ jobs:
           if [ -n "$INPUT_REF" ]; then
             SOURCE_REF="$INPUT_REF"
           else
-            SOURCE_REF="$(gh release list --repo aliyun/ossfs --limit 100 \
-              | awk 'BEGIN{best=""} $3 ~ /^v1\./ {print $3}' \
+            SOURCE_REF="$(gh api repos/aliyun/ossfs/releases --paginate -q '.[].tag_name' \
+              | grep '^v1\.' \
               | sort -V \
               | tail -n 1)"
           fi
