@@ -222,7 +222,8 @@ jobs:
         run: |
           set -eu
           ls -lah dist
-          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+          gh auth status
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json tagName >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" dist/* \
               --repo "$GITHUB_REPOSITORY" \
               --clobber
