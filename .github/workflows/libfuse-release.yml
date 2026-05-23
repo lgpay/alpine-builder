@@ -62,7 +62,7 @@ jobs:
           SAFE_REF="$(printf '%s' "$SOURCE_REF" | tr '/:@ ' '----')"
           RELEASE_TAG="libfuse-${SAFE_REF}-apk${INPUT_ALPINE}"
           RELEASE_NAME="libfuse ${SOURCE_REF} for Alpine ${INPUT_ALPINE}"
-          ARTIFACT_PREFIX="libfuse-alpine-${SAFE_REF}-apk${INPUT_ALPINE}"
+          ARTIFACT_PREFIX="libfuse-${SAFE_REF}-alpine${INPUT_ALPINE}"
 
           echo "source_ref=$SOURCE_REF" >> "$GITHUB_OUTPUT"
           echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
