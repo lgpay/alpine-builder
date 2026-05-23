@@ -60,7 +60,7 @@ jobs:
           fi
 
           SAFE_REF="$(printf '%s' "$SOURCE_REF" | tr '/:@ ' '----')"
-          RELEASE_TAG="libfuse-${SAFE_REF}-apk${INPUT_ALPINE}"
+          RELEASE_TAG="libfuse-${SAFE_REF}-alpine${INPUT_ALPINE}"
           RELEASE_NAME="libfuse ${SOURCE_REF} for Alpine ${INPUT_ALPINE}"
           ARTIFACT_PREFIX="libfuse-${SAFE_REF}-alpine${INPUT_ALPINE}"
 

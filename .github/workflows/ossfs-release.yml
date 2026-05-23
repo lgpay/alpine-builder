@@ -60,9 +60,9 @@ jobs:
           fi
 
           SAFE_REF="$(printf '%s' "$SOURCE_REF" | tr '/:@ ' '----')"
-          RELEASE_TAG="ossfs-${SAFE_REF}-apk${INPUT_ALPINE}"
+          RELEASE_TAG="ossfs-${SAFE_REF}-alpine${INPUT_ALPINE}"
           RELEASE_NAME="ossfs ${SOURCE_REF} for Alpine ${INPUT_ALPINE}"
-          ARTIFACT_PREFIX="ossfs-alpine-${SAFE_REF}-apk${INPUT_ALPINE}"
+          ARTIFACT_PREFIX="ossfs-${SAFE_REF}-alpine${INPUT_ALPINE}"
 
           echo "source_ref=$SOURCE_REF" >> "$GITHUB_OUTPUT"
           echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"

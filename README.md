@@ -155,6 +155,7 @@ workflow：`Auto release ossfs for Alpine`
 
 - 当前产出的是 `tar.gz` 二进制包，不是标准 `.apk` 安装包。
 - `force=true` 会强制重新构建；如果目标 release 已存在，workflow 会覆盖上传同名 asset，并同步更新 release 标题与说明。
+- release tag 与构建产物统一使用 `alpine<version>` 命名风格，例如 `ossfs-v1.91.10-alpine3.20`。
 - 如果某些项目安装逻辑特殊，可以扩展 `scripts/build-project.sh`，或者给项目增加专属脚本。
 - `make install` / `autotools` 类项目差异很大，新增项目时建议先手动验证一次。
 
