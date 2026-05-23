@@ -6,7 +6,7 @@
 
 ## 现在支持
 
-- `libfuse`、`ossfs` 自动跟踪上游版本并发布到 GitHub Release
+- `libfuse`、`libfuse2`、`ossfs1` 自动跟踪上游版本并发布到 GitHub Release
 - 手动指定源码 ref（tag / branch / commit）
 - 支持 `x86_64`、`aarch64` 或双架构构建
 - 在 Alpine 容器里构建，确保产物面向 musl 环境
@@ -28,7 +28,7 @@
 例如：
 
 - `libfuse-fuse-3.17.4-alpine3.20-x86_64.tar.gz`
-- `ossfs-v1.91.10-alpine3.20-x86_64.tar.gz`
+- `ossfs1-v1.91.10-alpine3.20-x86_64.tar.gz`
 
 说明：
 
@@ -41,11 +41,11 @@
 ```text
 .
 ├── .github/workflows/libfuse-release.yml
-├── .github/workflows/ossfs-release.yml
+├── .github/workflows/ossfs1-release.yml
 ├── projects/
 │   ├── libfuse/
 │   │   └── project.env
-│   └── ossfs/
+│   └── ossfs1/
 │       └── project.env
 ├── scripts/
 │   ├── build-project.sh
@@ -108,9 +108,9 @@ workflow：`Auto release libfuse for Alpine`
 - `arch`: `x86_64` / `aarch64` / `all`
 - `force=true`: 即使 release 已存在也强制重新构建
 
-### ossfs 自动发布 Release
+### ossfs1 自动发布 Release
 
-workflow：`Auto release ossfs for Alpine`
+workflow：`Auto release ossfs1 for Alpine`
 
 它会：
 
@@ -139,7 +139,7 @@ workflow：`Auto release ossfs for Alpine`
 - 配置参数：`-Dexamples=false -Dtests=false`
 - 支持自动跟踪上游 tag 并发布 Release
 
-### ossfs
+### ossfs1
 
 源码：<https://github.com/aliyun/ossfs>
 
@@ -155,7 +155,7 @@ workflow：`Auto release ossfs for Alpine`
 
 - 当前产出的是 `tar.gz` 二进制包，不是标准 `.apk` 安装包。
 - `force=true` 会强制重新构建；如果目标 release 已存在，workflow 会覆盖上传同名 asset，并同步更新 release 标题与说明。
-- release tag 与构建产物统一使用 `alpine<version>` 命名风格，例如 `ossfs-v1.91.10-alpine3.20`。
+- release tag 与构建产物统一使用 `alpine<version>` 命名风格，例如 `ossfs1-v1.91.10-alpine3.20`。
 - 如果某些项目安装逻辑特殊，可以扩展 `scripts/build-project.sh`，或者给项目增加专属脚本。
 - `make install` / `autotools` 类项目差异很大，新增项目时建议先手动验证一次。
 
