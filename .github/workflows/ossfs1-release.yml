@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: 'Optional ossfs1 ref override (tag / branch / commit). Empty means latest upstream tag.'
+        description: 'Optional ossfs1 ref override (tag / branch / commit). Empty means upstream main-v1 branch.'
         required: false
         default: ''
       alpine_version:
@@ -48,10 +48,7 @@ jobs:
           if [ -n "$INPUT_REF" ]; then
             SOURCE_REF="$INPUT_REF"
           else
-            SOURCE_REF="$(gh api repos/aliyun/ossfs/releases --paginate -q '.[].tag_name' \
-              | grep '^v1\.' \
-              | sort -V \
-              | tail -n 1)"
+            SOURCE_REF="main-v1"
           fi
 
           if [ -z "$SOURCE_REF" ]; then
@@ -223,7 +220,7 @@ jobs:
             echo 'Included files:'
             find dist -maxdepth 1 -type f | sed 's#^#- #'
             echo
-            echo 'This workflow tracks upstream ossfs GitHub releases on the v1.xx line by default, builds under the ossfs1 workflow name, and applies a minimal Alpine compatibility patch during build.'
+            echo 'This workflow tracks the upstream ossfs main-v1 maintenance branch by default and applies a minimal Alpine compatibility patch during build.'
           } > RELEASE_NOTES.md
           cat RELEASE_NOTES.md
 

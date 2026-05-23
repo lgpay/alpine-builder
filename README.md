@@ -10,7 +10,7 @@
 
 - **无数字后缀 = 最新版 / 默认主线**
   - `libfuse`：跟踪上游最新 libfuse 主线 tag
-  - `ossfs`：跟踪上游最新 `v1.x` release
+  - `ossfs`：跟踪上游最新 release
 - **有数字后缀 = 特定兼容线 / 维护线 / 指定变体**
   - `libfuse2`：fuse2 / `libfuse.so.2` ABI 线
   - `ossfs1`：`main-v1` 维护线
@@ -41,9 +41,9 @@
 例如：
 
 - `libfuse-fuse-3.18.2-alpine3.20-x86_64.tar.gz`
-- `libfuse-fuse-2.9.9-alpine3.20-x86_64.tar.gz`
-- `ossfs-v1.91.10-alpine3.20-x86_64.tar.gz`
-- `ossfs1-main-v1-alpine3.20-x86_64.tar.gz`
+- `libfuse2-fuse-2.9.9-alpine3.20-x86_64.tar.gz`
+- `ossfs-v2.0.7-alpine3.20-x86_64.tar.gz`
+- `ossfs1-v1.91.10-alpine3.20-x86_64.tar.gz`
 
 说明：
 
@@ -153,10 +153,9 @@ workflow：`Auto release ossfs for Alpine`
 
 它会：
 
-1. 每天定时检查 `ossfs` 上游最新 `v1.x` release tag
-2. 使用已发布的 `libfuse2` 制品满足 fuse2 / `libfuse.so.2` ABI 依赖
-3. 自动构建 Alpine 版本二进制包
-4. 自动发布到当前仓库的 GitHub Releases
+1. 每天定时检查 `ossfs` 上游最新 release
+2. 自动构建 Alpine 版本二进制包
+3. 自动发布到当前仓库的 GitHub Releases
 
 可手动触发参数：
 
@@ -172,9 +171,8 @@ workflow：`Auto release ossfs1 for Alpine`
 它会：
 
 1. 跟踪 `ossfs` 上游 `main-v1` 维护线
-2. 使用已发布的 `libfuse2` 制品满足 fuse2 / `libfuse.so.2` ABI 依赖
-3. 自动构建 Alpine 版本二进制包
-4. 自动发布到当前仓库的 GitHub Releases
+2. 自动构建 Alpine 版本二进制包
+3. 自动发布到当前仓库的 GitHub Releases
 
 可手动触发参数：
 
@@ -214,8 +212,7 @@ workflow：`Auto release ossfs1 for Alpine`
 默认设置：
 
 - Build system: `autotools`
-- 默认 ref: 自动取上游最新 `v1.x` release
-- 通过下载已发布的 `libfuse2` 制品来满足 `libfuse.so.2` / fuse2 ABI 依赖
+- 默认 ref: 自动取上游最新 release
 - workflow 名称：`Auto release ossfs for Alpine`
 - 适合维护最新版 ossfs 的 Alpine / musl 构建
 
@@ -227,7 +224,6 @@ workflow：`Auto release ossfs1 for Alpine`
 
 - Build system: `autotools`
 - 默认 ref: `main-v1`
-- 通过下载已发布的 `libfuse2` 制品来满足 `libfuse.so.2` / fuse2 ABI 依赖
 - 构建时会应用最小 Alpine 兼容补丁（通过 `POST_CLONE_HOOK`）
 - workflow 名称：`Auto release ossfs1 for Alpine`
 - 适合维护 `main-v1` 兼容线
@@ -239,8 +235,8 @@ workflow：`Auto release ossfs1 for Alpine`
 - release tag 与构建产物统一使用 `alpine<version>` 命名风格，例如：
   - `libfuse-fuse-3.18.2-alpine3.20`
   - `libfuse2-fuse-2.9.9-alpine3.20`
-  - `ossfs-v1.91.10-alpine3.20`
-  - `ossfs1-main-v1-alpine3.20`
+  - `ossfs-v2.0.7-alpine3.20`
+  - `ossfs1-v1.91.10-alpine3.20`
 - 构建产物文件名始终遵循 `<project>-<version>-alpine<alpine_version>-<arch>.tar.gz`，其中 `<project>` 必须与 `PROJECT_NAME` 保持一致。
 - 如果某些项目安装逻辑特殊，可以扩展 `scripts/build-project.sh`，或者给项目增加专属脚本。
 - `make install` / `autotools` 类项目差异很大，新增项目时建议先手动验证一次。

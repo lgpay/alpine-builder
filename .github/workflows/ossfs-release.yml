@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: 'Optional ossfs ref override (tag / branch / commit). Empty means latest upstream tag.'
+        description: 'Optional ossfs ref override (tag / branch / commit). Empty means latest upstream release.'
         required: false
         default: ''
       alpine_version:
@@ -49,7 +49,6 @@ jobs:
             SOURCE_REF="$INPUT_REF"
           else
             SOURCE_REF="$(gh api repos/aliyun/ossfs/releases --paginate -q '.[].tag_name' \
-              | grep '^v1\.' \
               | sort -V \
               | tail -n 1)"
           fi
@@ -223,7 +222,7 @@ jobs:
             echo 'Included files:'
             find dist -maxdepth 1 -type f | sed 's#^#- #'
             echo
-            echo 'This workflow tracks upstream ossfs GitHub releases on the v1.xx line by default, and injects released libfuse2 artifacts for the fuse2/libfuse.so.2 ABI line.'
+            echo 'This workflow tracks the latest upstream ossfs release by default.'
           } > RELEASE_NOTES.md
           cat RELEASE_NOTES.md
 
