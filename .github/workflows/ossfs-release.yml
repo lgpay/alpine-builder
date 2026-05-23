@@ -141,10 +141,8 @@ jobs:
           rm -rf "$HOST_OUT_DIR"
           mkdir -p "$HOST_OUT_DIR"
           PLATFORM="linux/amd64"
-          FUSE2_ASSET_ARCH="x86_64"
           if [ "$TARGET_ARCH_INPUT" = "aarch64" ]; then
             PLATFORM="linux/arm64"
-            FUSE2_ASSET_ARCH="aarch64"
           fi
 
           docker run --rm \
@@ -153,7 +151,6 @@ jobs:
             -e SOURCE_REF_INPUT \
             -e ALPINE_VERSION_INPUT \
             -e TARGET_ARCH_INPUT \
-            -e FUSE2_ASSET_ARCH \
             -v "$GITHUB_WORKSPACE:/workspace" \
             -v "$HOST_OUT_DIR:/tmp/out" \
             -w /workspace \
@@ -162,7 +159,7 @@ jobs:
               set -eu
               cat /workspace/projects/ossfs/project.env > /tmp/project.env
               . /tmp/project.env
-              apk add --no-cache $APK_BUILD_DEPS autoconf automake libtool make
+              apk add --no-cache $APK_BUILD_DEPS
               export PROJECT_NAME SOURCE_REPO BUILD_SYSTEM INSTALL_PREFIX CONFIGURE_ARGS BUILD_ARGS INSTALL_ARGS PACKAGE_DIRS APK_BUILD_DEPS SOURCE_SUBDIR PRE_BUILD_HOOK POST_CLONE_HOOK
               export SOURCE_REF="$SOURCE_REF_INPUT"
               export ALPINE_VERSION="$ALPINE_VERSION_INPUT"
