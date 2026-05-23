@@ -6,7 +6,7 @@
 
 ## 现在支持
 
-- `libfuse`、`libfuse2`、`ossfs1`、`ossfs2` 自动跟踪上游版本并发布到 GitHub Release
+- `libfuse`、`libfuse2`、`ossfs1`、`ossfs` 自动跟踪上游版本并发布到 GitHub Release
 - 手动指定源码 ref（tag / branch / commit）
 - 支持 `x86_64`、`aarch64` 或双架构构建
 - 在 Alpine 容器里构建，确保产物面向 musl 环境
@@ -42,12 +42,12 @@
 .
 ├── .github/workflows/libfuse-release.yml
 ├── .github/workflows/ossfs1-release.yml
-├── .github/workflows/ossfs2-release.yml
+├── .github/workflows/ossfs-release.yml
 ├── projects/
 │   ├── libfuse/
 │   │   └── project.env
 │   ├── ossfs1/
-│   └── ossfs2/
+│   └── ossfs/
 │       └── project.env
 ├── scripts/
 │   ├── build-project.sh
@@ -169,14 +169,14 @@ workflow：`Auto release ossfs1 for Alpine`
 - 针对项目预设支持更细的自定义 build hook
 
 
-### ossfs2
+### ossfs
 
 源码：<https://github.com/aliyun/ossfs>
 
 默认设置：
 
 - Build system: `autotools`
-- 默认 ref: `main-v1`
-- 构建依赖使用 Alpine `fuse3-dev`（libfuse3 ABI 线）
-- workflow 名称：`Auto release ossfs2 for Alpine`
-- 适合与 `ossfs1` 分开维护不同 FUSE ABI 目标
+- 默认 ref: 自动取上游最新 `v1.x` release
+- 通过下载已发布的 `libfuse2` 制品来满足 `libfuse.so.2` / fuse2 ABI 依赖
+- workflow 名称：`Auto release ossfs for Alpine`
+- 适合维护最新版 ossfs 的 Alpine / musl 构建

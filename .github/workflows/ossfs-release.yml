@@ -1,4 +1,4 @@
-name: Auto release ossfs2 for Alpine
+name: Auto release ossfs for Alpine
 
 on:
   schedule:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: 'Optional ossfs2 ref override (tag / branch / commit). Empty means latest upstream tag.'
+        description: 'Optional ossfs ref override (tag / branch / commit). Empty means latest upstream tag.'
         required: false
         default: ''
       alpine_version:
@@ -55,14 +55,14 @@ jobs:
           fi
 
           if [ -z "$SOURCE_REF" ]; then
-            echo 'Failed to resolve ossfs2 tag' >&2
+            echo 'Failed to resolve ossfs tag' >&2
             exit 1
           fi
 
           SAFE_REF="$(printf '%s' "$SOURCE_REF" | tr '/:@ ' '----')"
-          RELEASE_TAG="ossfs2-${SAFE_REF}-alpine${INPUT_ALPINE}"
-          RELEASE_NAME="ossfs2 ${SOURCE_REF} for Alpine ${INPUT_ALPINE}"
-          ARTIFACT_PREFIX="ossfs2-${SAFE_REF}-alpine${INPUT_ALPINE}"
+          RELEASE_TAG="ossfs-${SAFE_REF}-alpine${INPUT_ALPINE}"
+          RELEASE_NAME="ossfs ${SOURCE_REF} for Alpine ${INPUT_ALPINE}"
+          ARTIFACT_PREFIX="ossfs-${SAFE_REF}-alpine${INPUT_ALPINE}"
 
           echo "source_ref=$SOURCE_REF" >> "$GITHUB_OUTPUT"
           echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
@@ -133,7 +133,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build ossfs2 in Alpine container
+      - name: Build ossfs in Alpine container
         env:
           SOURCE_REF_INPUT: ${{ needs.discover.outputs.source_ref }}
           ALPINE_VERSION_INPUT: ${{ needs.discover.outputs.alpine_version }}
@@ -163,9 +163,19 @@ jobs:
             "alpine:$ALPINE_VERSION_INPUT" \
             sh -lc '
               set -eu
-              cat /workspace/projects/ossfs2/project.env > /tmp/project.env
+              cat /workspace/projects/ossfs/project.env > /tmp/project.env
               . /tmp/project.env
               apk add --no-cache $APK_BUILD_DEPS cmake autoconf automake libtool make
+              FUSE2_URL="https://github.com/lgpay/alpine-builder/releases/download/libfuse2-fuse-2.9.9-alpine${ALPINE_VERSION_INPUT}/libfuse-fuse-2.9.9-alpine${ALPINE_VERSION_INPUT}-${FUSE2_ASSET_ARCH}.tar.gz"
+              mkdir -p /tmp/fuse2
+              curl -L --fail "$FUSE2_URL" -o /tmp/fuse2.tar.gz
+              tar -xzf /tmp/fuse2.tar.gz -C /tmp/fuse2 --strip-components=1
+              cp -a /tmp/fuse2/include/fuse /usr/include/
+              cp -a /tmp/fuse2/include/fuse.h /usr/include/
+              cp -a /tmp/fuse2/include/ulockmgr.h /usr/include/
+              cp -a /tmp/fuse2/lib/* /usr/lib/
+              export PKG_CONFIG_PATH="/usr/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+              export LD_LIBRARY_PATH="/usr/lib:${LD_LIBRARY_PATH:-}"
               export PROJECT_NAME SOURCE_REPO BUILD_SYSTEM INSTALL_PREFIX CONFIGURE_ARGS BUILD_ARGS INSTALL_ARGS PACKAGE_DIRS APK_BUILD_DEPS SOURCE_SUBDIR PRE_BUILD_HOOK POST_CLONE_HOOK
               export SOURCE_REF="$SOURCE_REF_INPUT"
               export ALPINE_VERSION="$ALPINE_VERSION_INPUT"
@@ -207,13 +217,13 @@ jobs:
         run: |
           set -eu
           {
-            printf 'Automated build for ossfs2 ref `%s` on Alpine `%s`.\n\n' \
+            printf 'Automated build for ossfs ref `%s` on Alpine `%s`.\n\n' \
               '${{ needs.discover.outputs.source_ref }}' \
               '${{ needs.discover.outputs.alpine_version }}'
             echo 'Included files:'
             find dist -maxdepth 1 -type f | sed 's#^#- #'
             echo
-            echo 'This workflow tracks upstream ossfs GitHub releases on the v1.xx line by default, builds under the ossfs2 workflow name, and uses Alpine fuse3-dev for the fuse3/libfuse3 ABI line.'
+            echo 'This workflow tracks upstream ossfs GitHub releases on the v1.xx line by default, and injects released libfuse2 artifacts for the fuse2/libfuse.so.2 ABI line.'
           } > RELEASE_NOTES.md
           cat RELEASE_NOTES.md
 
