@@ -182,9 +182,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.meta.outputs.artifact_base }}
-          path: |
-            ${{ runner.temp }}/alpine-out-${{ matrix.arch }}/*.tar.gz
-            ${{ runner.temp }}/alpine-out-${{ matrix.arch }}/*.sha256
+          path: ${{ runner.temp }}/alpine-out-${{ matrix.arch }}/*.tar.gz
           if-no-files-found: error
 
   release:

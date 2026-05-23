@@ -2,29 +2,44 @@
 
 通用的 GitHub Actions Alpine 编译项目。
 
-目标：在 `alpine` 容器里编译各种开源项目，输出适用于 Alpine Linux / musl 的二进制制品。当前内置了 `libfuse` 和 `ossfs` 两个示例，后续可以继续往 `projects/` 下加更多项目预设。
+目标：在 `alpine` 容器里编译各种开源项目，输出适用于 Alpine Linux / musl 的二进制制品。当前内置了 `libfuse` 和 `ossfs` 两个项目预设，后续可以继续往 `projects/` 下加更多项目。
 
 ## 现在支持
 
-- 手动选择要编译的项目预设
+- `libfuse`、`ossfs` 自动跟踪上游版本并发布到 GitHub Release
 - 手动指定源码 ref（tag / branch / commit）
 - 支持 `x86_64`、`aarch64` 或双架构构建
-- 在 Alpine 容器里构建，确保产物是 musl 环境
-- 输出 tar.gz artifact
-- 自动生成 `.sha256` 校验文件
-- `libfuse` 自动跟踪上游 tag，并自动发布到 GitHub Release
-- `ossfs` 自动跟踪上游 tag，并自动发布到 GitHub Release
+- 在 Alpine 容器里构建，确保产物面向 musl 环境
+- 输出简洁统一的 `tar.gz` 产物
 - 支持多种常见构建系统：
   - meson
   - cmake
   - autotools
   - make
 
+## 产物命名规则
+
+所有构建产物统一为：
+
+```text
+<project>-<version>-alpine<alpine_version>-<arch>.tar.gz
+```
+
+例如：
+
+- `libfuse-fuse-3.17.4-alpine3.20-x86_64.tar.gz`
+- `ossfs-v1.91.10-alpine3.20-x86_64.tar.gz`
+
+说明：
+
+- `version` 默认优先使用 workflow 已解析出的 `SOURCE_REF`
+- 不再把工作区 `dirty` 状态带进产物文件名
+- 不再生成 `.sha256` 附件
+
 ## 目录结构
 
 ```text
 .
-├── .github/workflows/build.yml
 ├── .github/workflows/libfuse-release.yml
 ├── .github/workflows/ossfs-release.yml
 ├── projects/
@@ -69,28 +84,15 @@ APK_BUILD_DEPS='bash build-base git tar file ca-certificates'
 - `INSTALL_ARGS`: 安装阶段参数
 - `PACKAGE_DIRS`: 打包哪些目录，空格分隔
 - `APK_BUILD_DEPS`: Alpine 下需要安装的依赖包
+- `SOURCE_SUBDIR`: 可选，源码子目录
+- `PRE_BUILD_HOOK`: 可选，编译前执行的 shell 片段
+- `POST_CLONE_HOOK`: 可选，clone / checkout 后执行的 shell 片段
 
-## 使用方式
-
-### 通用手动构建
-
-1. 推送到 GitHub 仓库
-2. 打开 `Actions`
-3. 运行 `Build Alpine package`
-4. 填写参数：
-   - `project`: 例如 `libfuse`
-   - `ref`: 可选，覆盖默认 ref
-   - `alpine_version`: 例如 `3.20`
-   - `arch`: `x86_64` / `aarch64` / `all`
-
-完成后会在 Artifacts 中得到：
-
-- `<project>-alpine-<git-sha>-apk<alpine-version>-<arch>.tar.gz`
-- 对应的 `.sha256` 校验文件
+## Release 工作流
 
 ### libfuse 自动发布 Release
 
-仓库内额外提供了一个 workflow：`Auto release libfuse for Alpine`
+workflow：`Auto release libfuse for Alpine`
 
 它会：
 
@@ -99,7 +101,7 @@ APK_BUILD_DEPS='bash build-base git tar file ca-certificates'
 3. 自动构建 Alpine 版本二进制包
 4. 自动发布到当前仓库的 GitHub Releases
 
-也可以手动触发，并支持：
+可手动触发参数：
 
 - `ref`: 手动指定 libfuse tag / branch / commit
 - `alpine_version`: 指定 Alpine 版本
@@ -108,16 +110,16 @@ APK_BUILD_DEPS='bash build-base git tar file ca-certificates'
 
 ### ossfs 自动发布 Release
 
-仓库内额外提供了一个 workflow：`Auto release ossfs for Alpine`
+workflow：`Auto release ossfs for Alpine`
 
 它会：
 
-1. 每天定时检查 `ossfs` 上游最新 tag
+1. 每天定时检查 `ossfs` 上游 `v1.x` release tag
 2. 如果当前仓库还没有对应 release
 3. 自动构建 Alpine 版本二进制包
 4. 自动发布到当前仓库的 GitHub Releases
 
-也可以手动触发，并支持：
+可手动触发参数：
 
 - `ref`: 手动指定 ossfs tag / branch / commit
 - `alpine_version`: 指定 Alpine 版本
@@ -134,9 +136,8 @@ APK_BUILD_DEPS='bash build-base git tar file ca-certificates'
 
 - Build system: `meson`
 - 默认 ref: `master`
-- 配置参数：`'-Dexamples=false -Dtests=false'`
+- 配置参数：`-Dexamples=false -Dtests=false`
 - 支持自动跟踪上游 tag 并发布 Release
-- 自动附带多架构构建产物和 `.sha256` 校验文件
 
 ### ossfs
 
@@ -144,24 +145,22 @@ APK_BUILD_DEPS='bash build-base git tar file ca-certificates'
 
 默认设置：
 
-- Build system: `cmake`
-- 默认 ref: `main`
-- 产物会包含：
-  - `/usr/local/bin/ossfs2`
-  - `/usr/sbin/mount.ossfs2`
-  - `/usr/local/lib64/ossfs2/libfuse3.so.3`
-- 针对项目自带的预置依赖 tarball 直接在 Alpine 容器内编译
-- 说明：上游 README 明确写了 aarch64 目前仅官方支持 Alibaba Cloud Linux 3；这里仍然保留通用构建能力，但 ARM 产物建议自行验证运行兼容性
+- Build system: `autotools`
+- 默认 ref: `main-v1`
+- 构建时会应用最小 Alpine 兼容补丁（通过 `POST_CLONE_HOOK`）
+- 支持自动跟踪上游 `v1.x` release 并发布 Release
+- ARM 产物建议自行验证运行兼容性
 
 ## 注意
 
-- 这套东西当前产出的是 `tar.gz` 二进制包，不是标准 `.apk` 安装包。
-- 如果某些项目安装逻辑特殊，可以单独扩展 `scripts/build-project.sh`，或者给项目增加专属脚本。
-- `make install` 类项目差异很大，新增项目时建议先本地验证一遍。
+- 当前产出的是 `tar.gz` 二进制包，不是标准 `.apk` 安装包。
+- `force=true` 只会强制重新构建；如果目标 release tag 已存在，而 workflow 仍调用 `gh release create`，发布阶段会失败。
+- 如果某些项目安装逻辑特殊，可以扩展 `scripts/build-project.sh`，或者给项目增加专属脚本。
+- `make install` / `autotools` 类项目差异很大，新增项目时建议先手动验证一次。
 
 ## 适合后续加的增强
 
+- 已存在 release 时改为覆盖上传 asset，而不是直接失败
 - 真正生成 `.apk`
-- 多架构矩阵（x86_64 / aarch64）
-- 自动发布 GitHub Release
-- 针对项目预设支持自定义 build hook
+- 更多项目预设
+- 针对项目预设支持更细的自定义 build hook

@@ -33,12 +33,15 @@ cd "$SRC_DIR/$SOURCE_SUBDIR"
 
 GIT_DESCRIBE_VALUE="$(git describe --tags --always --dirty 2>/dev/null || git rev-parse --short HEAD)"
 GIT_SHA_VALUE="$(git rev-parse --short HEAD)"
+PACKAGE_VERSION_VALUE="${SOURCE_REF:-$GIT_DESCRIBE_VALUE}"
 export GIT_DESCRIBE="$GIT_DESCRIBE_VALUE"
 export GIT_SHA="$GIT_SHA_VALUE"
+export PACKAGE_VERSION="$PACKAGE_VERSION_VALUE"
 
 if [ -n "${GITHUB_ENV:-}" ]; then
   echo "GIT_DESCRIBE=$GIT_DESCRIBE_VALUE" >> "$GITHUB_ENV"
   echo "GIT_SHA=$GIT_SHA_VALUE" >> "$GITHUB_ENV"
+  echo "PACKAGE_VERSION=$PACKAGE_VERSION_VALUE" >> "$GITHUB_ENV"
 fi
 
 echo "Building $PROJECT_NAME from $SOURCE_REPO @ $SOURCE_REF using $BUILD_SYSTEM"
@@ -75,4 +78,4 @@ case "$BUILD_SYSTEM" in
 esac
 
 mkdir -p /tmp/out
-"$GITHUB_WORKSPACE/scripts/package.sh" "$INSTALL_ROOT" /tmp/out "${GIT_DESCRIBE:-${GIT_SHA:-unknown}}" "${ALPINE_VERSION:-unknown}" "${TARGET_ARCH:-unknown}" "$PROJECT_NAME" "$PACKAGE_DIRS"
+"$GITHUB_WORKSPACE/scripts/package.sh" "$INSTALL_ROOT" /tmp/out "${PACKAGE_VERSION:-${GIT_DESCRIBE:-${GIT_SHA:-unknown}}}" "${ALPINE_VERSION:-unknown}" "${TARGET_ARCH:-unknown}" "$PROJECT_NAME" "$PACKAGE_DIRS"

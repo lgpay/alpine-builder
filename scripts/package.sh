@@ -14,7 +14,7 @@ if [ -z "$PREFIX_DIR" ] || [ -z "$OUT_DIR" ]; then
   exit 1
 fi
 
-PKG_ROOT="$OUT_DIR/${PROJECT_NAME}-alpine-${VERSION}-apk${ALPINE_VERSION}-${ARCH}"
+PKG_ROOT="$OUT_DIR/${PROJECT_NAME}-${VERSION}-alpine${ALPINE_VERSION}-${ARCH}"
 mkdir -p "$PKG_ROOT"
 
 for dir in $PACKAGE_DIRS_RAW; do
@@ -37,11 +37,4 @@ EOF
 TAR_PATH="$OUT_DIR/$(basename "$PKG_ROOT").tar.gz"
 tar -C "$OUT_DIR" -czf "$TAR_PATH" "$(basename "$PKG_ROOT")"
 
-SHA_PATH="$TAR_PATH.sha256"
-(
-  cd "$OUT_DIR"
-  sha256sum "$(basename "$TAR_PATH")"
-) > "$SHA_PATH"
-
 echo "Created package: $TAR_PATH"
-echo "Created checksum: $SHA_PATH"
