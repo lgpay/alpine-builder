@@ -17,6 +17,10 @@ on:
         description: 'Target architecture: x86_64, aarch64, or all'
         required: false
         default: 'all'
+      libfuse_ref:
+        description: 'Optional libfuse ref override. Empty means latest upstream fuse-* tag.'
+        required: false
+        default: ''
       force:
         description: 'Force rebuild and release even if release tag already exists'
         required: false
@@ -30,6 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       source_ref: ${{ steps.pick.outputs.source_ref }}
+      libfuse_ref: ${{ steps.libfuse.outputs.source_ref }}
       release_tag: ${{ steps.pick.outputs.release_tag }}
       release_name: ${{ steps.pick.outputs.release_name }}
       artifact_prefix: ${{ steps.pick.outputs.artifact_prefix }}
@@ -66,6 +71,29 @@ jobs:
           echo "release_name=$RELEASE_NAME" >> "$GITHUB_OUTPUT"
           echo "artifact_prefix=$ARTIFACT_PREFIX" >> "$GITHUB_OUTPUT"
           echo "alpine_version=$INPUT_ALPINE" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve libfuse tag
+        id: libfuse
+        env:
+          INPUT_REF: ${{ inputs.libfuse_ref }}
+        run: |
+          set -eu
+          if [ -n "$INPUT_REF" ]; then
+            SOURCE_REF="$INPUT_REF"
+          else
+            SOURCE_REF="$(git ls-remote --tags --refs https://github.com/libfuse/libfuse.git 'fuse-*' \
+              | awk '{print $2}' \
+              | sed 's#refs/tags/##' \
+              | sort -V \
+              | tail -n 1)"
+          fi
+
+          if [ -z "$SOURCE_REF" ]; then
+            echo 'Failed to resolve libfuse tag' >&2
+            exit 1
+          fi
+
+          echo "source_ref=$SOURCE_REF" >> "$GITHUB_OUTPUT"
 
       - name: Resolve architecture matrix
         id: arch
@@ -130,16 +158,16 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build ossfs in Alpine container
+      - name: Build libfuse in Alpine container
         env:
-          SOURCE_REF_INPUT: ${{ needs.discover.outputs.source_ref }}
+          SOURCE_REF_INPUT: ${{ needs.discover.outputs.libfuse_ref }}
           ALPINE_VERSION_INPUT: ${{ needs.discover.outputs.alpine_version }}
           TARGET_ARCH_INPUT: ${{ matrix.arch }}
-          HOST_OUT_DIR: ${{ runner.temp }}/alpine-out-${{ matrix.arch }}
+          HOST_LIBFUSE_OUT_DIR: ${{ runner.temp }}/libfuse-out-${{ matrix.arch }}
         run: |
           set -eu
-          rm -rf "$HOST_OUT_DIR"
-          mkdir -p "$HOST_OUT_DIR"
+          rm -rf "$HOST_LIBFUSE_OUT_DIR"
+          mkdir -p "$HOST_LIBFUSE_OUT_DIR"
           PLATFORM="linux/amd64"
           if [ "$TARGET_ARCH_INPUT" = "aarch64" ]; then
             PLATFORM="linux/arm64"
@@ -152,7 +180,50 @@ jobs:
             -e ALPINE_VERSION_INPUT \
             -e TARGET_ARCH_INPUT \
             -v "$GITHUB_WORKSPACE:/workspace" \
+            -v "$HOST_LIBFUSE_OUT_DIR:/tmp/out" \
+            -w /workspace \
+            "alpine:$ALPINE_VERSION_INPUT" \
+            sh -lc '
+              set -eu
+              cat /workspace/projects/libfuse/project.env > /tmp/project.env
+              . /tmp/project.env
+              apk add --no-cache $APK_BUILD_DEPS cmake autoconf automake libtool make
+              export PROJECT_NAME SOURCE_REPO BUILD_SYSTEM INSTALL_PREFIX CONFIGURE_ARGS BUILD_ARGS INSTALL_ARGS PACKAGE_DIRS APK_BUILD_DEPS
+              export SOURCE_REF="$SOURCE_REF_INPUT"
+              export ALPINE_VERSION="$ALPINE_VERSION_INPUT"
+              export TARGET_ARCH="$TARGET_ARCH_INPUT"
+              chmod +x /workspace/scripts/package.sh /workspace/scripts/build-project.sh
+              /workspace/scripts/build-project.sh
+            '
+
+      - name: Build ossfs in Alpine container
+        env:
+          SOURCE_REF_INPUT: ${{ needs.discover.outputs.source_ref }}
+          ALPINE_VERSION_INPUT: ${{ needs.discover.outputs.alpine_version }}
+          TARGET_ARCH_INPUT: ${{ matrix.arch }}
+          HOST_OUT_DIR: ${{ runner.temp }}/alpine-out-${{ matrix.arch }}
+          HOST_LIBFUSE_OUT_DIR: ${{ runner.temp }}/libfuse-out-${{ matrix.arch }}
+        run: |
+          set -eu
+          rm -rf "$HOST_OUT_DIR"
+          mkdir -p "$HOST_OUT_DIR"
+          LIBFUSE_TARBALL="$(find "$HOST_LIBFUSE_OUT_DIR" -maxdepth 1 -type f -name 'libfuse-*.tar.gz' | sort | tail -n 1)"
+          test -n "$LIBFUSE_TARBALL"
+          PLATFORM="linux/amd64"
+          if [ "$TARGET_ARCH_INPUT" = "aarch64" ]; then
+            PLATFORM="linux/arm64"
+          fi
+
+          docker run --rm \
+            --platform "$PLATFORM" \
+            -e GITHUB_WORKSPACE=/workspace \
+            -e SOURCE_REF_INPUT \
+            -e ALPINE_VERSION_INPUT \
+            -e TARGET_ARCH_INPUT \
+            -e LOCAL_LIBFUSE_TARBALL=/inputs/libfuse.tar.gz \
+            -v "$GITHUB_WORKSPACE:/workspace" \
             -v "$HOST_OUT_DIR:/tmp/out" \
+            -v "$LIBFUSE_TARBALL:/inputs/libfuse.tar.gz:ro" \
             -w /workspace \
             "alpine:$ALPINE_VERSION_INPUT" \
             sh -lc '
@@ -194,6 +265,7 @@ jobs:
       - name: Download all built artifacts
         uses: actions/download-artifact@v4
         with:
+          pattern: ${{ needs.discover.outputs.artifact_prefix }}-*
           path: dist
           merge-multiple: true
 
@@ -201,13 +273,14 @@ jobs:
         run: |
           set -eu
           {
-            printf 'Automated build for ossfs ref `%s` on Alpine `%s`.\n\n' \
+            printf 'Automated build for ossfs ref `%s` on Alpine `%s` with libfuse ref `%s` built first in CI.\n\n' \
               '${{ needs.discover.outputs.source_ref }}' \
-              '${{ needs.discover.outputs.alpine_version }}'
+              '${{ needs.discover.outputs.alpine_version }}' \
+              '${{ needs.discover.outputs.libfuse_ref }}'
             echo 'Included files:'
             find dist -maxdepth 1 -type f | sed 's#^#- #'
             echo
-            echo 'This workflow tracks the latest upstream ossfs release by default and builds it directly in Alpine without downloading prebuilt fuse artifacts.'
+            echo 'This workflow builds a musl-compatible libfuse artifact first, then injects that artifact into the ossfs build to replace the upstream glibc-oriented prebuilt dependency.'
           } > RELEASE_NOTES.md
           cat RELEASE_NOTES.md
 
