@@ -107,6 +107,18 @@ patch_source_files() {
   fi
 }
 
+patch_cpp_redirect_warning() {
+  # musl libc emits a #warning redirecting <sys/poll.h> -> <poll.h>. With
+  # -Werror (set by ossfs CMakeLists.txt) this harmless redirect becomes a
+  # fatal -Werror=cpp error and aborts the build. Exempt just this warning so
+  # real warnings still fail the build, mirroring the existing
+  # -Wno-error=unused-result pattern.
+  [ -f CMakeLists.txt ] || return 0
+  grep -q -- '-Wno-error=cpp' CMakeLists.txt && return 0
+  sed -i 's/\(-Wno-error=unused-result\)/\1 -Wno-error=cpp/' CMakeLists.txt
+}
+
 patch_libfuse_dependency
 ensure_musl_compat_source
 patch_source_files
+patch_cpp_redirect_warning
