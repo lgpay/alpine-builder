@@ -31,15 +31,29 @@ find_libfuse_tarball() {
 patch_libfuse_dependency() {
   [ -f dependencies/CMakeLists.txt ] || return 0
 
-  LIBFUSE_HASH="04a5d2eca73e390f475ac785fe3d5145"
+  # ossfs dependencies/CMakeLists.txt ships per-arch prebuilt libfuse tarballs:
+  #   x86_64  -> libfuse-3.16.2-linux-x86_64.tar.gz  (upstream MD5 d84e371e77c82a2a18bec1b353633554)
+  #   aarch64 -> libfuse-3.16.2-linux-aarch64.tar.gz (upstream MD5 e3cf7d710562cb82c0e88fbd49cb4711)
+  # Replace the matching arch's tarball with the freshly-built libfuse and
+  # rewrite its URL_HASH, so the ExternalProject download/verify step succeeds
+  # for both architectures. Previously only the x86_64 path/hash was touched,
+  # which left aarch64 pointing at the stale upstream 3.16.2 tarball while the
+  # soname lookup was rewritten to 3.18.2 -> "No rule to make target" failure.
+  case "${TARGET_ARCH:-$(uname -m)}" in
+    x86_64|amd64)  ARCH_TAG=x86_64;  UPSTREAM_HASH=d84e371e77c82a2a18bec1b353633554 ;;
+    aarch64|arm64) ARCH_TAG=aarch64; UPSTREAM_HASH=e3cf7d710562cb82c0e88fbd49cb4711 ;;
+    *) echo "Unsupported arch for libfuse patching: ${TARGET_ARCH:-unknown}" >&2; return 1 ;;
+  esac
+
   LIBFUSE_TARBALL="$(find_libfuse_tarball || true)"
   if [ -n "$LIBFUSE_TARBALL" ]; then
     LIBFUSE_HASH=$(md5sum "$LIBFUSE_TARBALL" | awk '{print $1}')
-    cp "$LIBFUSE_TARBALL" dependencies/pre-built/libfuse/libfuse-3.16.2-linux-x86_64.tar.gz
+    cp "$LIBFUSE_TARBALL" "dependencies/pre-built/libfuse/libfuse-3.16.2-linux-${ARCH_TAG}.tar.gz"
+    sed -i "s/$UPSTREAM_HASH/$LIBFUSE_HASH/" dependencies/CMakeLists.txt
+    # upstream references libfuse3.so.3.16.2; the freshly built libfuse ships a
+    # newer soname (e.g. 3.18.2), so rewrite the lookup name to match.
+    sed -i 's#libfuse3.so.3.16.2#libfuse3.so.3.18.2#' dependencies/CMakeLists.txt
   fi
-
-  sed -i "s/d84e371e77c82a2a18bec1b353633554/$LIBFUSE_HASH/" dependencies/CMakeLists.txt
-  sed -i 's#libfuse3.so.3.16.2#libfuse3.so.3.18.2#' dependencies/CMakeLists.txt
 }
 
 ensure_musl_compat_source() {
