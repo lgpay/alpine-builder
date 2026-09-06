@@ -88,7 +88,10 @@ patch_header_if_missing() {
 patch_source_files() {
   patch_header_if_missing src/common/utils.h '#include <time.h>' '#include <stdint.h>' '#include <time.h>'
   patch_header_if_missing src/fs/inode.h '#include <sys/types.h>' '#include <time.h>' '#include <sys/types.h>\n#include <sys/stat.h>'
+  patch_header_if_missing src/fs/file_writer.cpp '#include <sys/stat.h>' '^#include ' '#include <sys/stat.h>'
+  patch_header_if_missing src/fs/file_writer.cpp '#define S_BLKSIZE' '#include <sys/stat.h>' '#ifndef S_BLKSIZE\n#define S_BLKSIZE 512\n#endif'
   patch_header_if_missing src/fs/fs.cpp '#include <malloc.h>' '^#include ' '#include <malloc.h>'
+  patch_header_if_missing src/fs/fs.cpp '#include <sys/file.h>' '^#include ' '#include <sys/file.h>'
   patch_header_if_missing src/main.cpp '#include <malloc.h>' '^#include ' '#include <malloc.h>'
 
   if [ -f src/fs/fs.cpp ] && ! grep -q 'static inline int malloc_trim(size_t)' src/fs/fs.cpp; then
