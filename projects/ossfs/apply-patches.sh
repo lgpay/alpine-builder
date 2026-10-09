@@ -36,9 +36,9 @@ patch_libfuse_dependency() {
   #   aarch64 -> libfuse-3.16.2-linux-aarch64.tar.gz (upstream MD5 e3cf7d710562cb82c0e88fbd49cb4711)
   # Replace the matching arch's tarball with the freshly-built libfuse and
   # rewrite its URL_HASH, so the ExternalProject download/verify step succeeds
-  # for both architectures. Previously only the x86_64 path/hash was touched,
-  # which left aarch64 pointing at the stale upstream 3.16.2 tarball while the
-  # soname lookup was rewritten to 3.18.2 -> "No rule to make target" failure.
+  # for both architectures. The libfuse SONAME is discovered from the artifact
+  # instead of being hard-coded, because the latest libfuse release can change
+  # it (for example 3.18.2 -> 3.18.3).
   case "${TARGET_ARCH:-$(uname -m)}" in
     x86_64|amd64)  ARCH_TAG=x86_64;  UPSTREAM_HASH=d84e371e77c82a2a18bec1b353633554 ;;
     aarch64|arm64) ARCH_TAG=aarch64; UPSTREAM_HASH=e3cf7d710562cb82c0e88fbd49cb4711 ;;
@@ -46,14 +46,24 @@ patch_libfuse_dependency() {
   esac
 
   LIBFUSE_TARBALL="$(find_libfuse_tarball || true)"
-  if [ -n "$LIBFUSE_TARBALL" ]; then
-    LIBFUSE_HASH=$(md5sum "$LIBFUSE_TARBALL" | awk '{print $1}')
-    cp "$LIBFUSE_TARBALL" "dependencies/pre-built/libfuse/libfuse-3.16.2-linux-${ARCH_TAG}.tar.gz"
-    sed -i "s/$UPSTREAM_HASH/$LIBFUSE_HASH/" dependencies/CMakeLists.txt
-    # upstream references libfuse3.so.3.16.2; the freshly built libfuse ships a
-    # newer soname (e.g. 3.18.2), so rewrite the lookup name to match.
-    sed -i 's#libfuse3.so.3.16.2#libfuse3.so.3.18.2#' dependencies/CMakeLists.txt
+  if [ -z "$LIBFUSE_TARBALL" ]; then
+    echo "Missing locally built libfuse artifact for ${ARCH_TAG}" >&2
+    return 1
   fi
+
+  LIBFUSE_HASH=$(md5sum "$LIBFUSE_TARBALL" | awk '{print $1}')
+  LIBFUSE_SONAME="$(tar -tzf "$LIBFUSE_TARBALL" \
+    | sed -nE 's#^.*/(libfuse3\.so\.[0-9]+(\.[0-9]+)*)$#\1#p' \
+    | sort -V | tail -n 1)"
+  if [ -z "$LIBFUSE_SONAME" ]; then
+    echo "Could not determine libfuse SONAME from $LIBFUSE_TARBALL" >&2
+    return 1
+  fi
+
+  cp "$LIBFUSE_TARBALL" "dependencies/pre-built/libfuse/libfuse-3.16.2-linux-${ARCH_TAG}.tar.gz"
+  sed -i -E "/set\\(LIBFUSE_HASH /s#MD5=[0-9a-fA-F]{32}#MD5=$LIBFUSE_HASH#" dependencies/CMakeLists.txt
+  sed -i -E "s#libfuse-[0-9]+\.[0-9]+\.[0-9]+#libfuse-3.16.2#g" dependencies/CMakeLists.txt
+  sed -i -E "s#libfuse3\.so\.[0-9]+(\.[0-9]+)*#$LIBFUSE_SONAME#g" dependencies/CMakeLists.txt
 }
 
 ensure_musl_compat_source() {
