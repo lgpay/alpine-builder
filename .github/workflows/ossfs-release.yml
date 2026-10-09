@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: 'Optional ossfs ref override (tag / branch / commit). Empty means latest upstream release.'
+        description: 'Optional ossfs ref override (tag / branch / commit). Empty means the pinned compatible release.'
         required: false
         default: ''
       alpine_version:
@@ -53,7 +53,9 @@ jobs:
           if [ -n "$INPUT_REF" ]; then
             SOURCE_REF="$INPUT_REF"
           else
-            SOURCE_REF="$(gh api repos/aliyun/ossfs/releases --paginate -q '.[].tag_name' | sort -V | tail -n 1)"
+            # Keep scheduled builds reproducible. The newest upstream release
+            # may require source/patch changes before it is buildable on Alpine.
+            SOURCE_REF="v2.0.9"
           fi
 
           if [ -z "$SOURCE_REF" ]; then
