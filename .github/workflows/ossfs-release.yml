@@ -31,7 +31,7 @@ permissions:
 
 jobs:
   discover:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       source_ref: ${{ steps.pick.outputs.source_ref }}
       libfuse_ref: ${{ steps.libfuse.outputs.source_ref }}
@@ -141,7 +141,7 @@ jobs:
   build:
     needs: discover
     if: needs.discover.outputs.should_build == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -258,7 +258,7 @@ jobs:
   release:
     needs: [discover, build]
     if: needs.discover.outputs.should_build == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
