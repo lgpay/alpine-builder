@@ -58,9 +58,9 @@ jobs:
           fi
 
           SAFE_REF="$(printf '%s' "$SOURCE_REF" | tr '/:@ ' '----')"
-          RELEASE_TAG="libfuse2-${SAFE_REF}-alpine${INPUT_ALPINE}"
-          RELEASE_NAME="libfuse2 ${SOURCE_REF} for Alpine ${INPUT_ALPINE}"
-          ARTIFACT_PREFIX="libfuse2-${SAFE_REF}-alpine${INPUT_ALPINE}"
+          RELEASE_TAG="libfuse-${SAFE_REF}-alpine${INPUT_ALPINE}"
+          RELEASE_NAME="libfuse ${SOURCE_REF} for Alpine ${INPUT_ALPINE}"
+          ARTIFACT_PREFIX="libfuse-${SAFE_REF}-alpine${INPUT_ALPINE}"
 
           echo "source_ref=$SOURCE_REF" >> "$GITHUB_OUTPUT"
           echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
@@ -203,7 +203,7 @@ jobs:
         run: |
           set -eu
           {
-            printf 'Automated build for libfuse2 ref `%s` on Alpine `%s`.\n\n' \
+            printf 'Automated build for libfuse ref `%s` on Alpine `%s`.\n\n' \
               '${{ needs.discover.outputs.source_ref }}' \
               '${{ needs.discover.outputs.alpine_version }}'
             echo 'Included files:'

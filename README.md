@@ -27,16 +27,16 @@
 示例：
 
 - `libfuse-fuse-3.18.2-alpine3.20-x86_64.tar.gz`
-- `libfuse2-fuse-2.9.9-alpine3.20-x86_64.tar.gz`
+- `libfuse-fuse-2.9.9-alpine3.20-x86_64.tar.gz`
 - `ossfs-v2.0.7-alpine3.20-x86_64.tar.gz`
-- `ossfs1-v1.91.10-alpine3.20-x86_64.tar.gz`
+- `ossfs-v1.91.10-alpine3.20-x86_64.tar.gz`
 
 对应 release tag 示例：
 
 - `libfuse-fuse-3.18.2-alpine3.20`
-- `libfuse2-fuse-2.9.9-alpine3.20`
+- `libfuse-fuse-2.9.9-alpine3.20`
 - `ossfs-v2.0.7-alpine3.20`
-- `ossfs1-v1.91.10-alpine3.20`
+- `ossfs-v1.91.10-alpine3.20`
 
 ## 目录
 
